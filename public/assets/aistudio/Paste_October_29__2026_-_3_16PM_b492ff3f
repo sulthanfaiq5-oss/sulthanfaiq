@@ -1,0 +1,1337 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DOKU Financial - Jasa Pencatatan & Pengelolaan Keuangan</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#f0f5fa',
+              100: '#e1ecf5',
+              800: '#172554',
+              900: '#0f172a',
+              950: '#090d16',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @media print {
+      body * { visibility: hidden; }
+      #printable-report-modal, #printable-report-modal * { visibility: visible; }
+      #printable-report-modal {
+        position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 24px; background: white;
+      }
+      .no-print { display: none !important; }
+    }
+    .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased font-sans flex flex-col min-h-screen">
+
+  <!-- ============================================================== -->
+  <!-- 0. PERSISTENT POV SWITCHER BAR (SIMULATOR HEADER) -->
+  <!-- ============================================================== -->
+  <aside class="sticky top-0 z-50 bg-brand-950 border-b border-slate-800 text-white px-4 py-2.5 shadow-md no-print">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <span class="flex h-2.5 w-2.5 relative">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+        </span>
+        <div class="text-xs">
+          <span class="text-slate-400">Mode Simulasi Peran:</span>
+          <strong id="active-pov-label" class="text-blue-400 font-bold ml-1 uppercase">POV Klien (Pelanggan / Bendahara Organisasi)</strong>
+        </div>
+        <span class="text-[11px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-slate-700 hidden md:inline font-mono">Shared Accounting Engine Active</span>
+      </div>
+
+      <!-- Quick Switcher Buttons -->
+      <div class="flex items-center gap-2 bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs">
+        <button id="btn-pov-client" onclick="switchPOV('client')" class="flex items-center gap-2 px-3 py-1.5 rounded-lg font-bold transition duration-200 bg-blue-600 text-white shadow-sm">
+          <i data-lucide="building-2" class="w-3.5 h-3.5"></i>
+          <span>POV Klien (Organisasi/UMKM)</span>
+        </button>
+        <button id="btn-pov-admin" onclick="switchPOV('admin')" class="flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium transition duration-200 text-slate-400 hover:text-white">
+          <i data-lucide="calculator" class="w-3.5 h-3.5"></i>
+          <span>POV Akuntan / Auditor DOKU</span>
+          <span id="queue-badge-pill" class="bg-amber-500 text-slate-950 text-[10px] font-black px-1.5 py-0.2 rounded-full">1</span>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Flash Notification Toast Container -->
+  <div id="toast-container" class="fixed top-16 right-4 z-50 flex flex-col gap-2 max-w-sm pointer-events-none"></div>
+
+  <!-- ============================================================== -->
+  <!-- 1. VIEWPORT: CLIENT / CUSTOMER BOOKKEEPING PORTAL -->
+  <!-- ============================================================== -->
+  <div id="view-client" class="flex-1 flex flex-col">
+    <!-- Client Top Nav -->
+    <header class="bg-white border-b border-slate-200 sticky top-12 z-30 shadow-xs">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-900 to-indigo-800 text-white flex items-center justify-center font-bold text-lg shadow-sm">
+            D
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-extrabold text-slate-900 text-base">DOKU Financial</span>
+              <span class="text-xs bg-blue-50 text-blue-700 font-bold px-2 py-0.5 rounded-full border border-blue-200">Portal Klien</span>
+            </div>
+            <p class="text-[11px] text-slate-500">Klien Aktif: <strong class="text-slate-800">BEM Universitas Indonesia Merdeka</strong> • Paket Jasa: Standard Monthly Bookkeeping</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <button onclick="openSetorNotaModal()" class="bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm">
+            <i data-lucide="receipt" class="w-4 h-4"></i>
+            <span>Setor Nota / Struk Baru</span>
+          </button>
+          <button onclick="openReconcileModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-2 rounded-xl border border-slate-200 transition flex items-center gap-1.5 hidden sm:flex">
+            <i data-lucide="file-spreadsheet" class="w-4 h-4 text-emerald-600"></i>
+            <span>Sinkron Mutasi Bank</span>
+          </button>
+          <div class="h-6 w-px bg-slate-200 hidden sm:block"></div>
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-full bg-slate-100 border border-slate-300 text-slate-700 flex items-center justify-center font-bold text-xs">
+              BM
+            </div>
+            <div class="hidden md:block text-left text-xs">
+              <p class="font-bold text-slate-900 leading-tight">M. Ihsan (Bendahara)</p>
+              <p class="text-[11px] text-slate-500">Panitia Dies Natalis 2026</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Client Content Body -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 w-full space-y-6 flex-1">
+      
+      <!-- Informative Greeting Banner -->
+      <div class="rounded-2xl p-4 bg-gradient-to-r from-blue-950 via-slate-900 to-indigo-950 text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
+        <div class="flex items-center gap-3">
+          <div class="p-2.5 rounded-xl bg-blue-800/60 border border-blue-700 shrink-0">
+            <i data-lucide="shield-check" class="w-5 h-5 text-emerald-400"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold">Layanan Pengelolaan Keuangan & Akuntansi DOKU Aktif</h3>
+            <p class="text-xs text-blue-200 mt-0.5">Seluruh nota belanja Anda diaudit, dijurnal, dan dicocokkan dengan mutasi bank oleh tim akuntan profesional.</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 w-full md:w-auto">
+          <button onclick="openReportModal()" class="flex-1 md:flex-initial bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm">
+            <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+            <span>Lihat Laporan LPJ Sah</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Financial Metrics Cards (Client Saldo Real) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Kas Riil Tervalidasi -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div>
+            <span class="text-xs font-medium text-slate-500">Saldo Kas Riil Sah</span>
+            <h3 id="client-stat-balance" class="text-xl font-black text-slate-900 font-mono mt-1">Rp 16.750.000</h3>
+            <span class="text-[11px] text-emerald-600 font-semibold flex items-center gap-1 mt-0.5">
+              <i data-lucide="check" class="w-3 h-3"></i> Tervalidasi Auditor DOKU
+            </span>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <i data-lucide="landmark" class="w-5 h-5"></i>
+          </div>
+        </div>
+
+        <!-- Total Pemasukan -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div>
+            <span class="text-xs font-medium text-slate-500">Pemasukan Disahkan</span>
+            <h3 id="client-stat-income" class="text-xl font-black text-emerald-600 font-mono mt-1">Rp 22.500.000</h3>
+            <span id="client-stat-income-count" class="text-[11px] text-slate-500 mt-0.5 block">2 Penerimaan Dana Sah</span>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+            <i data-lucide="arrow-down-left" class="w-5 h-5"></i>
+          </div>
+        </div>
+
+        <!-- Total Pengeluaran Sah -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div>
+            <span class="text-xs font-medium text-slate-500">Pengeluaran Disahkan</span>
+            <h3 id="client-stat-expense" class="text-xl font-black text-rose-600 font-mono mt-1">Rp 5.750.000</h3>
+            <span id="client-stat-expense-count" class="text-[11px] text-slate-500 mt-0.5 block">4 Transaksi Belanja Sah</span>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+            <i data-lucide="arrow-up-right" class="w-5 h-5"></i>
+          </div>
+        </div>
+
+        <!-- Status Tutup Buku Periode -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div>
+            <span class="text-xs font-medium text-slate-500">Status Buku Kas Periode</span>
+            <h3 id="client-stat-period-status" class="text-sm font-bold text-blue-900 mt-1">Buku Terbuka (Audit Berjalan)</h3>
+            <span id="client-stat-pending-notes" class="text-[11px] text-amber-600 font-medium mt-0.5 block">1 Nota Menunggu Audit</span>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
+            <i data-lucide="book-open-check" class="w-5 h-5"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Accounting Workflow Stepper for Client -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-2">
+          <i data-lucide="route" class="w-4 h-4 text-blue-600"></i>
+          <span>Alur Transparansi Jasa Pembukuan Organisasi Anda</span>
+        </h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+          <div class="p-3.5 rounded-xl bg-blue-50/70 border border-blue-200">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="w-5 h-5 rounded-full bg-blue-900 text-white font-bold text-[10px] flex items-center justify-center">1</span>
+              <strong class="text-blue-950">Setor Nota & Struk</strong>
+            </div>
+            <p class="text-[11px] text-blue-800">Unggah foto struk belanja panitia dan mutasi transfer bank secara praktis.</p>
+          </div>
+          <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="w-5 h-5 rounded-full bg-slate-200 text-slate-700 font-bold text-[10px] flex items-center justify-center">2</span>
+              <strong class="text-slate-800">Pemeriksaan Auditor</strong>
+            </div>
+            <p class="text-[11px] text-slate-600">Akuntan DOKU menguji keaslian nota, pos akun beban, dan mencegah belanja duplikat.</p>
+          </div>
+          <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="w-5 h-5 rounded-full bg-slate-200 text-slate-700 font-bold text-[10px] flex items-center justify-center">3</span>
+              <strong class="text-slate-800">Penjurnalan Kas Sah</strong>
+            </div>
+            <p class="text-[11px] text-slate-600">Saldo kas otomatis terbarui dan dicocokkan dengan buku besar akuntansi.</p>
+          </div>
+          <div class="p-3.5 rounded-xl bg-emerald-50/80 border border-emerald-200">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="w-5 h-5 rounded-full bg-emerald-600 text-white font-bold text-[10px] flex items-center justify-center">4</span>
+              <strong class="text-emerald-950">Terbit LPJ Sah (PDF)</strong>
+            </div>
+            <p class="text-[11px] text-emerald-800">Laporan pertanggungjawaban bertanda tangan digital siap dipertanggungjawabkan.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Buku Kas Klien Table (Transactions) -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div>
+            <h3 class="font-bold text-slate-900 text-base">Buku Kas Transaksi Organisasi</h3>
+            <p class="text-xs text-slate-500">Daftar transaksi yang disetor panitia dan status verifikasi dari tim akuntansi DOKU.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <select id="client-filter-status" onchange="filterClientTable()" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-700 focus:outline-none">
+              <option value="all">Semua Status</option>
+              <option value="approved">Hanya yang Sah (Tervalidasi)</option>
+              <option value="pending">Menunggu Audit DOKU</option>
+            </select>
+            <button onclick="openReportModal()" class="px-3.5 py-1.5 bg-blue-900 hover:bg-blue-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+              <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+              <span>Cetak LPJ Kas</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+              <tr>
+                <th class="py-3 px-4">Kode Transaksi</th>
+                <th class="py-3 px-4">Tanggal</th>
+                <th class="py-3 px-4">Deskripsi Transaksi</th>
+                <th class="py-3 px-4">Kategori Beban / Pendapatan</th>
+                <th class="py-3 px-4">Bukti Nota Fisik</th>
+                <th class="py-3 px-4 text-right">Nominal</th>
+                <th class="py-3 px-4 text-center">Status Audit DOKU</th>
+              </tr>
+            </thead>
+            <tbody id="client-tx-tbody" class="divide-y divide-slate-100 font-medium">
+              <!-- Dynamically rendered -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- 2. VIEWPORT: ACCOUNTANT & AUDITOR MEJA KERJA WORKSTATION -->
+  <!-- ============================================================== -->
+  <div id="view-admin" class="flex-1 flex flex-col hidden">
+    <!-- Admin Top Nav -->
+    <header class="bg-brand-950 text-white border-b border-slate-800 sticky top-12 z-30 shadow-xs">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-black text-lg shadow-sm">
+            <i data-lucide="briefcase" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-extrabold text-white text-base">DOKU Workstation</span>
+              <span class="text-xs bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded-full border border-emerald-500/30">Meja Akuntan & Auditor</span>
+            </div>
+            <p class="text-[11px] text-slate-400">Auditor Utama: <strong class="text-slate-200">Rian Pratama, S.Ak., CA</strong> • Standar SAK EMKM / Akuntansi Nirlaba</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <button onclick="toggleLockPeriod()" id="btn-lock-period" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold px-3 py-1.5 rounded-xl transition flex items-center gap-1.5">
+            <i data-lucide="lock" class="w-3.5 h-3.5 text-amber-400"></i>
+            <span id="label-lock-period">Kunci Periode (Tutup Buku)</span>
+          </button>
+          <div class="h-6 w-px bg-slate-800 hidden sm:block"></div>
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-full bg-emerald-600 text-slate-950 flex items-center justify-center font-black text-xs">
+              RP
+            </div>
+            <span class="text-xs font-bold text-white hidden md:inline">Auditor Internal</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Admin Content Body -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 w-full space-y-6 flex-1">
+      
+      <!-- Metrics Overview for Accountant -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div>
+            <span class="text-xs font-medium text-slate-500">Antrean Nota Disetor Klien</span>
+            <h3 id="admin-stat-pending-count" class="text-xl font-black text-amber-600 font-mono mt-1">1 Nota</h3>
+            <span class="text-[11px] text-slate-500">Menunggu pemeriksaan fisik</span>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+            <i data-lucide="file-clock" class="w-5 h-5"></i>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div>
+            <span class="text-xs font-medium text-slate-500">Total Transaksi Sah Masuk Buku</span>
+            <h3 id="admin-stat-approved-count" class="text-xl font-black text-slate-900 font-mono mt-1">6 Jurnal</h3>
+            <span class="text-[11px] text-emerald-600 font-medium">Masuk Buku Besar</span>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+            <i data-lucide="book-marked" class="w-5 h-5"></i>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div>
+            <span class="text-xs font-medium text-slate-500">Saldo Akhir Buku Kas</span>
+            <h3 id="admin-stat-balance-gl" class="text-xl font-black text-emerald-700 font-mono mt-1">Rp 16.750.000</h3>
+            <span class="text-[11px] text-slate-500">Reconciled with Bank Statement</span>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <i data-lucide="scale" class="w-5 h-5"></i>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div>
+            <span class="text-xs font-medium text-slate-500">Billing Jasa Pembukuan</span>
+            <h3 class="text-xl font-black text-slate-900 font-mono mt-1">Rp 750.000</h3>
+            <span class="text-[11px] text-emerald-600 font-bold">Status: Terbayar (Paket Okt)</span>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+            <i data-lucide="badge-dollar-sign" class="w-5 h-5"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Operational Queue (Queue Verification Meja Kerja) -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+          <div>
+            <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+              <i data-lucide="stamp" class="w-4 h-4 text-amber-500"></i>
+              <span>Meja Kerja Auditor: Antrean Nota & Dokumen Belanja Masuk</span>
+            </h3>
+            <p class="text-xs text-slate-500">Periksa foto bukti kuitansi yang disetor panitia, tentukan akun beban yang sesuai, dan sahkan ke Buku Besar Kas.</p>
+          </div>
+          <span id="admin-queue-tag" class="text-xs font-mono font-bold px-3 py-1 rounded-full bg-amber-100 text-amber-800">
+            1 Nota Perlu Tindakan
+          </span>
+        </div>
+
+        <div id="admin-queue-list" class="space-y-4">
+          <!-- Dynamically populated queue cards -->
+        </div>
+      </div>
+
+      <!-- General Ledger / Jurnal Umum Akuntansi -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div>
+            <h3 class="font-bold text-slate-900 text-base">Jurnal Umum (General Ledger) Resmi</h3>
+            <p class="text-xs text-slate-500">Setiap transaksi sah telah dipetakan ke akun debit-kredit dan terkunci dari pengubahan liar.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="openReportModal()" class="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+              <i data-lucide="file-check-2" class="w-3.5 h-3.5 text-emerald-400"></i>
+              <span>Cetak Laporan Keuangan Sah</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+              <tr>
+                <th class="py-3 px-4">No. Ref Jurnal</th>
+                <th class="py-3 px-4">Tanggal Jurnal</th>
+                <th class="py-3 px-4">Keterangan Transaksi & Akun</th>
+                <th class="py-3 px-4">Kode COA & Kategori</th>
+                <th class="py-3 px-4 text-right">Debit (Masuk)</th>
+                <th class="py-3 px-4 text-right">Kredit (Keluar)</th>
+                <th class="py-3 px-4 text-center">Status Audit</th>
+              </tr>
+            </thead>
+            <tbody id="admin-gl-tbody" class="divide-y divide-slate-100 font-mono text-[11px]">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- MODAL: KLIEN SETOR NOTA / STRUK DIGITAL BARU -->
+  <!-- ============================================================== -->
+  <div id="modal-setor-nota" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200">
+      <div class="p-4 bg-slate-900 text-white flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i data-lucide="receipt" class="w-5 h-5 text-blue-400"></i>
+          <h3 class="text-sm font-bold">Setor Nota / Struk Bukti Transaksi</h3>
+        </div>
+        <button onclick="closeModal('modal-setor-nota')" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="form-setor-nota" onsubmit="handleClientSetorNota(event)" class="p-5 space-y-4 text-xs">
+        <div>
+          <label class="block text-slate-700 font-bold mb-1">Jenis Transaksi *</label>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="flex items-center gap-2 p-2.5 border rounded-xl cursor-pointer hover:bg-slate-50 font-medium">
+              <input type="radio" name="input_type" value="pengeluaran" checked class="text-blue-900">
+              <span class="text-rose-700 font-bold">Pengeluaran / Beban</span>
+            </label>
+            <label class="flex items-center gap-2 p-2.5 border rounded-xl cursor-pointer hover:bg-slate-50 font-medium">
+              <input type="radio" name="input_type" value="pemasukan" class="text-blue-900">
+              <span class="text-emerald-700 font-bold">Pemasukan / Dana Masuk</span>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-700 font-bold mb-1">Deskripsi / Keperluan Belanja *</label>
+          <input type="text" id="input_desc" required placeholder="Contoh: Belanja Snack Konsumsi Seminar & Air Mineral" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 font-medium">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-700 font-bold mb-1">Tanggal Transaksi *</label>
+            <input type="date" id="input_date" required class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label class="block text-slate-700 font-bold mb-1">Nominal Riil (Rp) *</label>
+            <input type="number" id="input_amount" min="1000" step="500" required placeholder="150000" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 font-mono font-bold text-slate-900 focus:ring-2 focus:ring-blue-500">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-700 font-bold mb-1">Metode Bayar *</label>
+            <select id="input_method" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 font-medium">
+              <option value="Transfer Bank (BCA)">Transfer Bank (BCA)</option>
+              <option value="Transfer Bank (Mandiri)">Transfer Bank (Mandiri)</option>
+              <option value="Tunai / Kas Kecil (Petty Cash)">Tunai / Kas Kecil</option>
+              <option value="QRIS">QRIS</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-slate-700 font-bold mb-1">Usulan Kategori Akun</label>
+            <select id="input_category" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 font-medium">
+              <option value="Beban Konsumsi & Logistik">Beban Konsumsi & Logistik</option>
+              <option value="Perlengkapan & ATK">Perlengkapan & ATK</option>
+              <option value="Sewa Tempat & Peralatan">Sewa Tempat & Peralatan</option>
+              <option value="Honorarium / Jasa Narasumber">Honorarium Narasumber</option>
+              <option value="Dana Hibah / Sponsor Masuk">Dana Hibah / Sponsor Masuk</option>
+              <option value="Lain-lain">Lain-lain</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-700 font-bold mb-1">Foto Nota / Kuitansi Fisik *</label>
+          <div class="border-2 border-dashed border-slate-200 hover:border-blue-400 transition p-4 rounded-xl text-center bg-slate-50">
+            <i data-lucide="camera" class="w-6 h-6 mx-auto text-blue-600 mb-1"></i>
+            <p class="text-xs text-slate-600 font-semibold">Pilih foto struk / file kuitansi</p>
+            <p class="text-[10px] text-slate-400 mt-0.5">JPG, PNG, atau PDF (Maks. 5 MB)</p>
+            <input type="file" id="input_receipt_file" class="mt-2 text-xs w-full text-slate-500 file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-[11px] file:bg-blue-50 file:text-blue-700">
+          </div>
+        </div>
+
+        <div class="p-3 rounded-xl bg-blue-50 text-blue-900 border border-blue-200 text-[11px] leading-relaxed">
+          <strong>Perhatian:</strong> Nota yang disetor akan masuk ke antrean verifikasi akuntan DOKU untuk dicocokkan sebelum memengaruhi saldo kas akhir.
+        </div>
+
+        <div class="pt-2 flex items-center justify-end gap-2">
+          <button type="button" onclick="closeModal('modal-setor-nota')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold">Batal</button>
+          <button type="submit" class="px-4 py-2 bg-blue-900 hover:bg-blue-800 text-white rounded-xl font-bold shadow-sm">Kirim ke Akuntan DOKU</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- MODAL: SINKRONISASI MUTASI BANK / REKONSILIASI KAS -->
+  <!-- ============================================================== -->
+  <div id="modal-reconcile" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200">
+      <div class="p-4 bg-slate-900 text-white flex items-center justify-between">
+        <h3 class="text-sm font-bold flex items-center gap-2">
+          <i data-lucide="file-spreadsheet" class="w-4 h-4 text-emerald-400"></i>
+          <span>Sinkronisasi Rekening Koran Bank</span>
+        </h3>
+        <button onclick="closeModal('modal-reconcile')" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="p-5 space-y-4 text-xs">
+        <p class="text-slate-600">Unggah berkas mutasi bank (format CSV / e-Statement PDF) dari rekening giro atau tabungan kepanitiaan Anda untuk rekonsiliasi otomatis.</p>
+        
+        <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+          <span class="font-bold text-slate-800 block">Rekening Terdaftar:</span>
+          <div class="flex items-center justify-between text-slate-700">
+            <span>BCA Giro Kepanitiaan</span>
+            <span class="font-mono font-bold">8831-2940-112</span>
+          </div>
+          <div class="flex items-center justify-between text-slate-500 text-[11px]">
+            <span>Saldo Terakhir Bank:</span>
+            <span class="font-mono font-bold text-slate-900">Rp 16.750.000</span>
+          </div>
+        </div>
+
+        <div class="border-2 border-dashed border-slate-200 p-4 rounded-xl text-center">
+          <i data-lucide="upload" class="w-6 h-6 mx-auto text-slate-400 mb-1"></i>
+          <span class="text-xs text-slate-600 font-semibold block">Pilih Berkas Rekening Koran</span>
+          <input type="file" class="mt-2 text-[11px] text-slate-500">
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button onclick="closeModal('modal-reconcile')" class="px-3.5 py-2 bg-slate-100 text-slate-700 rounded-xl font-bold">Batal</button>
+          <button onclick="simulateBankSync()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold">Mulai Rekonsiliasi Kas</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- MODAL: LAPORAN PERTANGGUNGJAWABAN (LPJ) SAH (PRINTABLE / PDF) -->
+  <!-- ============================================================== -->
+  <div id="modal-report" class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[92vh] overflow-y-auto custom-scroll border border-slate-200">
+      <div class="p-4 bg-slate-900 text-white flex items-center justify-between no-print">
+        <div class="flex items-center gap-2">
+          <i data-lucide="file-check-2" class="w-5 h-5 text-emerald-400"></i>
+          <h3 class="text-sm font-bold">Laporan Realisasi Kas & Pertanggungjawaban Resmi</h3>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="window.print()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm">
+            <i data-lucide="printer" class="w-3.5 h-3.5"></i> Cetak / Simpan PDF
+          </button>
+          <button onclick="closeModal('modal-report')" class="text-slate-400 hover:text-white p-1">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Printable Area -->
+      <div id="printable-report-modal" class="p-8 sm:p-12 font-sans text-xs space-y-6 bg-white">
+        <!-- Letterhead Header -->
+        <div class="border-b-2 border-slate-900 pb-5 flex justify-between items-start">
+          <div>
+            <div class="flex items-center gap-2">
+              <div class="w-7 h-7 bg-blue-900 text-white rounded flex items-center justify-center font-bold">D</div>
+              <h1 class="text-xl font-black text-slate-900 tracking-tight">DOKU FINANCIAL SERVICES</h1>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-1">Layanan Tata Kelola Akuntansi, Audit Nota, dan Akuntabilitas Finansial</p>
+            <p class="text-[11px] text-slate-500">Izin Akuntan Register / KJA No. 04/DOKU-FIN/2026 • Jakarta Pusat</p>
+          </div>
+          <div class="text-right">
+            <span class="inline-block px-3 py-1 bg-slate-900 text-white text-[11px] font-bold rounded">LAPORAN ARUS KAS SAH</span>
+            <p class="font-mono text-xs font-bold text-slate-800 mt-2" id="rep-doc-id">DOC/2026/LPJ-BEM-001</p>
+            <p class="text-[11px] text-slate-500">Periode: <strong class="text-slate-800">Oktober 2026</strong></p>
+          </div>
+        </div>
+
+        <!-- Entity Information -->
+        <div class="grid grid-cols-2 gap-4 p-3 bg-slate-50 rounded-xl border border-slate-200">
+          <div>
+            <span class="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Entitas / Klien:</span>
+            <p class="font-bold text-slate-900 text-sm">BEM Universitas Indonesia Merdeka</p>
+            <p class="text-slate-600">Kepanitiaan Dies Natalis & Rapat Kerja Mahasiswa</p>
+          </div>
+          <div>
+            <span class="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Status Opini Audit DOKU:</span>
+            <span class="inline-flex items-center gap-1 text-emerald-800 bg-emerald-100 font-bold px-2 py-0.5 rounded text-xs">
+              <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> WAJAR TANPA PENGECUALIAN (RECONCILED)
+            </span>
+          </div>
+        </div>
+
+        <!-- Cashflow Summary Table -->
+        <div class="space-y-2">
+          <h4 class="font-bold text-slate-900 text-sm">1. Rangkuman Arus Kas & Saldo Akhir</h4>
+          <table class="w-full text-left border border-slate-200">
+            <thead class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+              <tr>
+                <th class="p-2.5">Pos Akun Finansial</th>
+                <th class="p-2.5 text-center">Jumlah Transaksi</th>
+                <th class="p-2.5 text-right">Nilai Total (IDR)</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200 font-mono text-[11px]">
+              <tr>
+                <td class="p-2.5 font-sans font-bold text-emerald-700">Total Pemasukan Kas Sah</td>
+                <td class="p-2.5 text-center font-sans" id="rep-income-count">2 Transaksi</td>
+                <td class="p-2.5 text-right font-bold text-emerald-700" id="rep-income-total">Rp 22.500.000</td>
+              </tr>
+              <tr>
+                <td class="p-2.5 font-sans font-bold text-rose-700">Total Pengeluaran Kas Sah (Beban Operasional)</td>
+                <td class="p-2.5 text-center font-sans" id="rep-expense-count">4 Transaksi</td>
+                <td class="p-2.5 text-right font-bold text-rose-700" id="rep-expense-total">- Rp 5.750.000</td>
+              </tr>
+            </tbody>
+            <tfoot class="bg-slate-50 border-t-2 border-slate-300 font-mono text-xs">
+              <tr>
+                <td colspan="2" class="p-2.5 text-right font-bold font-sans">SALDO AKHIR KAS RIIL (TERTUTUP):</td>
+                <td class="p-2.5 text-right font-black text-slate-900" id="rep-balance-final">Rp 16.750.000</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <!-- Detail Breakdown per Category -->
+        <div class="space-y-2">
+          <h4 class="font-bold text-slate-900 text-sm">2. Rincian Realisasi Pengeluaran per Kategori</h4>
+          <table class="w-full text-left border border-slate-200">
+            <thead class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+              <tr>
+                <th class="p-2.5">Kategori Beban</th>
+                <th class="p-2.5">Persentase dari Total Belanja</th>
+                <th class="p-2.5 text-right">Realisasi</th>
+              </tr>
+            </thead>
+            <tbody id="rep-category-breakdown" class="divide-y divide-slate-200 text-[11px]">
+              <!-- Populated dynamically -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Official Signatures with Digital Stamps -->
+        <div class="pt-8 border-t border-slate-200 grid grid-cols-2 gap-8 text-xs">
+          <div class="text-center">
+            <p class="text-slate-500">Pihak Klien / Bendahara</p>
+            <p class="font-bold text-slate-900 mt-1">BEM Universitas Indonesia Merdeka</p>
+            <div class="h-16 flex items-center justify-center">
+              <span class="font-mono text-[10px] text-slate-400 italic">[Tanda Tangan Digital Klien]</span>
+            </div>
+            <p class="font-bold text-slate-900 underline">M. Ihsan</p>
+            <p class="text-[10px] text-slate-500">NIM: 22010892 • Bendahara Umum</p>
+          </div>
+
+          <div class="text-center">
+            <p class="text-slate-500">Diverifikasi & Disahkan Oleh Akuntan</p>
+            <p class="font-bold text-blue-900 mt-1">DOKU Financial Services</p>
+            <div class="h-16 flex items-center justify-center">
+              <div class="border-2 border-emerald-600 bg-emerald-50 px-3 py-1 rounded text-emerald-800 font-mono font-bold text-[10px] rotate-[-2deg] shadow-xs">
+                ★ DOKU AUDITED & VERIFIED ★<br>SAK EMKM COMPLIANT
+              </div>
+            </div>
+            <p class="font-bold text-slate-900 underline">Rian Pratama, S.Ak., CA</p>
+            <p class="text-[10px] text-slate-500">Managing Accountant Reg. #098812</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- JAVASCRIPT: SHARED REACTIVE ACCOUNTING ENGINE -->
+  <!-- ============================================================== -->
+  <script>
+    /**
+     * DOKU SHARED REACTIVE STORE
+     * Both Client and Accountant viewports read and mutate this centralized state
+     */
+    const STATE = {
+      currentPOV: 'client',
+      isPeriodLocked: false,
+      
+      // Transactions Array
+      transactions: [
+        {
+          id: "TX-2026-001",
+          date: "2026-10-15",
+          desc: "Pencairan Hibah Dana Kemahasiswaan BEM",
+          type: "pemasukan",
+          category: "Dana Hibah / Sponsor Masuk",
+          method: "Transfer Bank (BCA)",
+          amount: 20000000,
+          receiptName: "surat-hibah-dana-rektorat.pdf",
+          status: "approved", // 'pending' or 'approved'
+          coaCode: "4-101 (Pendapatan Hibah)",
+          auditorNote: "Dana masuk terkonfirmasi di rekening giro BCA.",
+          verifiedBy: "Rian Pratama, CA",
+        },
+        {
+          id: "TX-2026-002",
+          date: "2026-10-18",
+          desc: "Sewa Aula Utama & Panggung Dies Natalis",
+          type: "pengeluaran",
+          category: "Sewa Tempat & Peralatan",
+          method: "Transfer Bank (BCA)",
+          amount: 3500000,
+          receiptName: "kuitansi-sewa-aula.jpg",
+          status: "approved",
+          coaCode: "5-201 (Beban Sewa)",
+          auditorNote: "Kuitansi bermeterai resmi dari pengelola gedung.",
+          verifiedBy: "Rian Pratama, CA",
+        },
+        {
+          id: "TX-2026-003",
+          date: "2026-10-20",
+          desc: "Sponsor Kegiatan dari Bank Syariah",
+          type: "pemasukan",
+          category: "Dana Hibah / Sponsor Masuk",
+          method: "Transfer Bank (BCA)",
+          amount: 2500000,
+          receiptName: "mou-sponsor-bank.pdf",
+          status: "approved",
+          coaCode: "4-102 (Pendapatan Sponsorship)",
+          auditorNote: "Sesuai MoU sponsorship kemahasiswaan.",
+          verifiedBy: "Rian Pratama, CA",
+        },
+        {
+          id: "TX-2026-004",
+          date: "2026-10-22",
+          desc: "Konsumsi Nasi Kotak Rapat Panitia 40 Orang",
+          type: "pengeluaran",
+          category: "Beban Konsumsi & Logistik",
+          method: "Tunai / Kas Kecil (Petty Cash)",
+          amount: 1200000,
+          receiptName: "nota-katering-berkah.jpg",
+          status: "approved",
+          coaCode: "5-102 (Beban Konsumsi)",
+          auditorNote: "Faktur kasir cocok dengan daftar hadir panitia.",
+          verifiedBy: "Rian Pratama, CA",
+        },
+        {
+          id: "TX-2026-005",
+          date: "2026-10-24",
+          desc: "Pencetakan Spanduk & ID Card Panitia",
+          type: "pengeluaran",
+          category: "Perlengkapan & ATK",
+          method: "QRIS",
+          amount: 850000,
+          receiptName: "struk-digital-percetakan.png",
+          status: "approved",
+          coaCode: "5-103 (Beban Publikasi & Cetak)",
+          auditorNote: "Struk QRIS valid dengan timestamp 24/10.",
+          verifiedBy: "Rian Pratama, CA",
+        },
+        {
+          id: "TX-2026-006",
+          date: "2026-10-25",
+          desc: "Pembelian ATK, Spidol, & Kertas HVS Rapat",
+          type: "pengeluaran",
+          category: "Perlengkapan & ATK",
+          method: "Tunai / Kas Kecil (Petty Cash)",
+          amount: 200000,
+          receiptName: "struk-toko-buku-ceria.jpg",
+          status: "approved",
+          coaCode: "5-101 (Beban ATK & Kantor)",
+          auditorNote: "Sesuai rincian kasir.",
+          verifiedBy: "Rian Pratama, CA",
+        },
+        {
+          id: "TX-2026-007",
+          date: "2026-10-28",
+          desc: "Konsumsi Coffee Break Pemateri Seminar",
+          type: "pengeluaran",
+          category: "Beban Konsumsi & Logistik",
+          method: "QRIS",
+          amount: 450000,
+          receiptName: "struk-cafe-nara.jpg",
+          status: "pending",
+          coaCode: "5-102 (Beban Konsumsi)",
+          auditorNote: "Baru disetor klien, menunggu verifikasi staf DOKU.",
+          verifiedBy: "-",
+        }
+      ]
+    };
+
+    /**
+     * INITIALIZATION
+     */
+    window.addEventListener('DOMContentLoaded', () => {
+      // Default date in new receipt modal to today
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('input_date').value = today;
+
+      renderAll();
+      lucide.createIcons();
+    });
+
+    /**
+     * POV SWITCHER CONTROLLER
+     */
+    function switchPOV(pov) {
+      STATE.currentPOV = pov;
+      
+      const viewClient = document.getElementById('view-client');
+      const viewAdmin = document.getElementById('view-admin');
+      const btnClient = document.getElementById('btn-pov-client');
+      const btnAdmin = document.getElementById('btn-pov-admin');
+      const povLabel = document.getElementById('active-pov-label');
+
+      if (pov === 'client') {
+        viewClient.classList.remove('hidden');
+        viewAdmin.classList.add('hidden');
+        
+        btnClient.className = 'flex items-center gap-2 px-3 py-1.5 rounded-lg font-bold transition duration-200 bg-blue-600 text-white shadow-sm';
+        btnAdmin.className = 'flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium transition duration-200 text-slate-400 hover:text-white';
+        povLabel.innerText = 'POV Klien (Pelanggan / Bendahara Organisasi)';
+        povLabel.className = 'text-blue-400 font-bold ml-1 uppercase';
+        showToast('Beralih ke Portal Klien: Anda dapat menyetor nota belanja dan memantau saldo riil sah.', 'info');
+      } else {
+        viewClient.classList.add('hidden');
+        viewAdmin.classList.remove('hidden');
+        
+        btnAdmin.className = 'flex items-center gap-2 px-3 py-1.5 rounded-lg font-bold transition duration-200 bg-emerald-600 text-slate-950 shadow-sm';
+        btnClient.className = 'flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium transition duration-200 text-slate-400 hover:text-white';
+        povLabel.innerText = 'POV Akuntan / Auditor DOKU';
+        povLabel.className = 'text-emerald-400 font-bold ml-1 uppercase';
+        showToast('Beralih ke Meja Kerja Akuntan: Anda memiliki wewenang mengaudit nota dan menjurnal transaksi.', 'info');
+      }
+
+      renderAll();
+      lucide.createIcons();
+    }
+
+    /**
+     * MASTER RENDER FUNCTION (SYNCS BOTH SIDES)
+     */
+    function renderAll() {
+      const formatIDR = (n) => 'Rp ' + Number(n).toLocaleString('id-ID');
+
+      // 1. Calculate Aggregates
+      let incomeSum = 0;
+      let incomeCount = 0;
+      let expenseSum = 0;
+      let expenseCount = 0;
+      let pendingCount = 0;
+
+      STATE.transactions.forEach(t => {
+        if (t.status === 'approved') {
+          if (t.type === 'pemasukan') {
+            incomeSum += t.amount;
+            incomeCount++;
+          } else {
+            expenseSum += t.amount;
+            expenseCount++;
+          }
+        } else {
+          pendingCount++;
+        }
+      });
+
+      const realBalance = incomeSum - expenseSum;
+
+      // 2. Update Client Metrics
+      document.getElementById('client-stat-balance').innerText = formatIDR(realBalance);
+      document.getElementById('client-stat-income').innerText = formatIDR(incomeSum);
+      document.getElementById('client-stat-income-count').innerText = `${incomeCount} Penerimaan Dana Sah`;
+      document.getElementById('client-stat-expense').innerText = formatIDR(expenseSum);
+      document.getElementById('client-stat-expense-count').innerText = `${expenseCount} Transaksi Belanja Sah`;
+      document.getElementById('client-stat-pending-notes').innerText = `${pendingCount} Nota Menunggu Audit DOKU`;
+
+      if (STATE.isPeriodLocked) {
+        document.getElementById('client-stat-period-status').innerText = 'Buku Ditutup (Locked)';
+        document.getElementById('client-stat-period-status').className = 'text-sm font-bold text-emerald-700 mt-1';
+      } else {
+        document.getElementById('client-stat-period-status').innerText = 'Buku Terbuka (Audit Berjalan)';
+        document.getElementById('client-stat-period-status').className = 'text-sm font-bold text-blue-900 mt-1';
+      }
+
+      // Update Header Badges
+      document.getElementById('queue-badge-pill').innerText = pendingCount;
+      document.getElementById('admin-queue-tag').innerText = `${pendingCount} Nota Perlu Tindakan`;
+      document.getElementById('admin-stat-pending-count').innerText = `${pendingCount} Nota`;
+      document.getElementById('admin-stat-approved-count').innerText = `${incomeCount + expenseCount} Jurnal`;
+      document.getElementById('admin-stat-balance-gl').innerText = formatIDR(realBalance);
+
+      // Render Client Transactions Table
+      renderClientTable();
+
+      // Render Admin Queue (Meja Kerja)
+      renderAdminQueue();
+
+      // Render Admin General Ledger
+      renderAdminGeneralLedger();
+
+      // Update Report Modal Data
+      updateReportModalData(incomeSum, incomeCount, expenseSum, expenseCount, realBalance);
+    }
+
+    /**
+     * RENDER CLIENT TABLE
+     */
+    function renderClientTable() {
+      const tbody = document.getElementById('client-tx-tbody');
+      const filter = document.getElementById('client-filter-status').value;
+      const formatIDR = (n) => 'Rp ' + Number(n).toLocaleString('id-ID');
+
+      const filtered = STATE.transactions.filter(t => {
+        if (filter === 'approved') return t.status === 'approved';
+        if (filter === 'pending') return t.status === 'pending';
+        return true;
+      });
+
+      tbody.innerHTML = '';
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" class="text-center py-6 text-slate-400">Tidak ada transaksi yang cocok dengan filter.</td>
+          </tr>
+        `;
+        return;
+      }
+
+      filtered.forEach(t => {
+        const isApproved = t.status === 'approved';
+        const isIncome = t.type === 'pemasukan';
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50 transition';
+
+        tr.innerHTML = `
+          <td class="py-3 px-4 font-mono font-bold text-[11px] text-slate-700">${t.id}</td>
+          <td class="py-3 px-4 text-slate-500 font-mono text-[11px]">${t.date}</td>
+          <td class="py-3 px-4 font-semibold text-slate-900">
+            ${t.desc}
+            <div class="text-[10px] text-slate-400 font-normal mt-0.5">Metode: ${t.method} • ${t.auditorNote}</div>
+          </td>
+          <td class="py-3 px-4">
+            <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-medium text-[11px]">${t.category}</span>
+          </td>
+          <td class="py-3 px-4">
+            <button onclick="previewReceipt('${t.receiptName}', '${t.desc}', '${t.amount}')" class="text-blue-700 hover:text-blue-900 underline flex items-center gap-1 font-semibold text-[11px]">
+              <i data-lucide="paperclip" class="w-3 h-3"></i>
+              <span>${t.receiptName}</span>
+            </button>
+          </td>
+          <td class="py-3 px-4 text-right font-mono font-bold ${isIncome ? 'text-emerald-600' : 'text-slate-900'}">
+            ${isIncome ? '+' : '-'} ${formatIDR(t.amount)}
+          </td>
+          <td class="py-3 px-4 text-center">
+            ${isApproved 
+              ? '<span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full text-[10px]"><i data-lucide="check-circle" class="w-3 h-3"></i> Tervalidasi</span>' 
+              : '<span class="inline-flex items-center gap-1 bg-amber-100 text-amber-800 font-bold px-2.5 py-0.5 rounded-full text-[10px]"><i data-lucide="clock" class="w-3 h-3"></i> Diaudit DOKU</span>'}
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function filterClientTable() {
+      renderClientTable();
+      lucide.createIcons();
+    }
+
+    /**
+     * RENDER ADMIN VERIFICATION QUEUE (MEJA AUDITOR)
+     */
+    function renderAdminQueue() {
+      const container = document.getElementById('admin-queue-list');
+      const formatIDR = (n) => 'Rp ' + Number(n).toLocaleString('id-ID');
+      const pendings = STATE.transactions.filter(t => t.status === 'pending');
+
+      container.innerHTML = '';
+
+      if (pendings.length === 0) {
+        container.innerHTML = `
+          <div class="p-6 text-center text-slate-400 border border-dashed rounded-xl bg-slate-50 space-y-1">
+            <i data-lucide="check-check" class="w-8 h-8 text-emerald-500 mx-auto mb-1"></i>
+            <p class="text-xs font-bold text-slate-800">Semua nota dan setoran belanja telah diaudit!</p>
+            <p class="text-[11px]">Buku kas dan rekening koran klien saat ini berada dalam kondisi seimbang (Reconciled).</p>
+          </div>
+        `;
+        return;
+      }
+
+      pendings.forEach(t => {
+        const card = document.createElement('div');
+        card.className = 'p-4 rounded-xl border border-amber-200 bg-amber-50/50 space-y-3';
+        card.innerHTML = `
+          <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 pb-3 border-b border-amber-200/70">
+            <div class="space-y-0.5">
+              <div class="flex items-center gap-2">
+                <span class="font-mono text-[10px] bg-slate-800 text-white px-2 py-0.5 rounded font-bold">${t.id}</span>
+                <span class="text-xs font-bold text-slate-900">${t.desc}</span>
+                <span class="text-[10px] text-slate-500 font-mono">• ${t.date}</span>
+              </div>
+              <p class="text-xs text-slate-600">Disetor via ${t.method} • Kategori Usulan: <strong>${t.category}</strong></p>
+            </div>
+            <div class="text-right">
+              <span class="text-xs text-slate-400 font-medium block">Nominal Tertera:</span>
+              <span class="text-base font-black font-mono text-rose-700">${formatIDR(t.amount)}</span>
+            </div>
+          </div>
+
+          <!-- Auditor Controls -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs items-center">
+            <div>
+              <label class="block text-[11px] font-bold text-slate-700 mb-1">Verifikasi Bukti Kuitansi Fisik:</label>
+              <button onclick="previewReceipt('${t.receiptName}', '${t.desc}', '${t.amount}')" class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg text-slate-800 font-semibold flex items-center gap-1.5 w-full">
+                <i data-lucide="eye" class="w-3.5 h-3.5 text-blue-600"></i>
+                <span class="truncate">Tinjau ${t.receiptName}</span>
+              </button>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-bold text-slate-700 mb-1">Tetapkan Kode COA Akuntansi:</label>
+              <select id="coa-select-${t.id}" class="w-full bg-white border border-slate-300 rounded-lg p-1.5 text-slate-800 font-medium">
+                <option value="5-102 (Beban Konsumsi)">5-102 (Beban Konsumsi)</option>
+                <option value="5-101 (Beban ATK & Kantor)">5-101 (Beban ATK & Kantor)</option>
+                <option value="5-201 (Beban Sewa & Properti)">5-201 (Beban Sewa & Properti)</option>
+                <option value="5-301 (Beban Honorarium)">5-301 (Beban Honorarium)</option>
+              </select>
+            </div>
+
+            <div class="flex items-center gap-2 pt-4 md:pt-0">
+              <button onclick="approveTransactionByAuditor('${t.id}')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm">
+                <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                <span>Sahkan Jurnal</span>
+              </button>
+              <button onclick="rejectTransactionByAuditor('${t.id}')" class="px-3 py-2 border border-slate-300 hover:bg-white text-rose-700 font-bold rounded-xl transition">
+                Tolak Nota
+              </button>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    /**
+     * RENDER GENERAL LEDGER (JURNAL UMUM)
+     */
+    function renderAdminGeneralLedger() {
+      const tbody = document.getElementById('admin-gl-tbody');
+      const formatIDR = (n) => 'Rp ' + Number(n).toLocaleString('id-ID');
+      const approveds = STATE.transactions.filter(t => t.status === 'approved');
+
+      tbody.innerHTML = '';
+
+      approveds.forEach(t => {
+        const isIncome = t.type === 'pemasukan';
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50 transition';
+
+        tr.innerHTML = `
+          <td class="py-3 px-4 font-bold text-slate-800">${t.id}</td>
+          <td class="py-3 px-4 text-slate-500">${t.date}</td>
+          <td class="py-3 px-4 font-sans">
+            <strong class="text-slate-900 block">${t.desc}</strong>
+            <span class="text-[10px] text-slate-400 font-mono">Diverifikasi oleh: ${t.verifiedBy}</span>
+          </td>
+          <td class="py-3 px-4 text-slate-600">${t.coaCode}</td>
+          <td class="py-3 px-4 text-right font-bold text-emerald-600">${isIncome ? formatIDR(t.amount) : '-'}</td>
+          <td class="py-3 px-4 text-right font-bold text-rose-600">${!isIncome ? formatIDR(t.amount) : '-'}</td>
+          <td class="py-3 px-4 text-center font-sans">
+            <span class="inline-flex items-center gap-1 text-[10px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full font-semibold">
+              <i data-lucide="lock" class="w-2.5 h-2.5"></i> Sah
+            </span>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    /**
+     * CLIENT FORM SUBMISSION (SETOR NOTA)
+     */
+    function handleClientSetorNota(e) {
+      e.preventDefault();
+
+      if (STATE.isPeriodLocked) {
+        showToast('Periode buku kas telah ditutup oleh akuntan! Tidak dapat menyetor transaksi bulan lalu.', 'error');
+        return;
+      }
+
+      const type = document.querySelector('input[name="input_type"]:checked').value;
+      const desc = document.getElementById('input_desc').value.trim();
+      const date = document.getElementById('input_date').value;
+      const amount = parseFloat(document.getElementById('input_amount').value);
+      const method = document.getElementById('input_method').value;
+      const category = document.getElementById('input_category').value;
+      const fileInput = document.getElementById('input_receipt_file');
+
+      const fileName = fileInput.files.length > 0 
+        ? fileInput.files[0].name 
+        : `struk-nota-${Math.floor(100 + Math.random() * 900)}.jpg`;
+
+      const newTx = {
+        id: "TX-2026-" + String(STATE.transactions.length + 1).padStart(3, '0'),
+        date: date,
+        desc: desc,
+        type: type,
+        category: category,
+        method: method,
+        amount: amount,
+        receiptName: fileName,
+        status: "pending",
+        coaCode: "5-999 (Menunggu Klasifikasi)",
+        auditorNote: "Baru disetor klien, menunggu verifikasi staf DOKU.",
+        verifiedBy: "-",
+      };
+
+      STATE.transactions.unshift(newTx);
+      closeModal('modal-setor-nota');
+      document.getElementById('form-setor-nota').reset();
+      
+      showToast(`Nota "${desc}" berhasil disetor! Menunggu verifikasi tim Akuntan DOKU.`, 'success');
+      renderAll();
+      lucide.createIcons();
+    }
+
+    /**
+     * AUDITOR ACTIONS
+     */
+    function approveTransactionByAuditor(id) {
+      const tx = STATE.transactions.find(t => t.id === id);
+      if (!tx) return;
+
+      const coaSelect = document.getElementById(`coa-select-${id}`);
+      if (coaSelect) {
+        tx.coaCode = coaSelect.value;
+      }
+
+      tx.status = 'approved';
+      tx.auditorNote = 'Diverifikasi sah fisik kuitansi & masuk buku kas.';
+      tx.verifiedBy = 'Rian Pratama, CA';
+
+      showToast(`Transaksi ${id} disahkan! Jurnal umum dan saldo kas resmi telah diperbarui.`, 'success');
+      renderAll();
+      lucide.createIcons();
+    }
+
+    function rejectTransactionByAuditor(id) {
+      const tx = STATE.transactions.find(t => t.id === id);
+      if (!tx) return;
+
+      STATE.transactions = STATE.transactions.filter(t => t.id !== id);
+      showToast(`Nota ${id} ditolak karena rincian tidak terbaca / tidak memenuhi standar bukti sah.`, 'error');
+      renderAll();
+      lucide.createIcons();
+    }
+
+    function toggleLockPeriod() {
+      STATE.isPeriodLocked = !STATE.isPeriodLocked;
+      const btn = document.getElementById('btn-lock-period');
+      const label = document.getElementById('label-lock-period');
+
+      if (STATE.isPeriodLocked) {
+        btn.className = 'bg-rose-900/60 hover:bg-rose-800 text-rose-200 border border-rose-700 text-xs font-semibold px-3 py-1.5 rounded-xl transition flex items-center gap-1.5';
+        label.innerText = 'Buka Kunci Periode';
+        showToast('Periode buku kas resmi dikunci (Tutup Buku). Laporan keuangan final terbit.', 'warning');
+      } else {
+        btn.className = 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold px-3 py-1.5 rounded-xl transition flex items-center gap-1.5';
+        label.innerText = 'Kunci Periode (Tutup Buku)';
+        showToast('Kunci periode dibuka kembali untuk entri koreksi jurnal.', 'info');
+      }
+
+      renderAll();
+      lucide.createIcons();
+    }
+
+    /**
+     * RECEIPT PREVIEW SIMULATOR
+     */
+    function previewReceipt(name, desc, amount) {
+      const formatIDR = (n) => 'Rp ' + Number(n).toLocaleString('id-ID');
+      
+      const modal = document.createElement('div');
+      modal.className = 'fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4';
+      modal.innerHTML = `
+        <div class="bg-white rounded-2xl max-w-sm w-full overflow-hidden shadow-2xl border border-slate-200 text-xs">
+          <div class="p-4 bg-slate-900 text-white flex justify-between items-center">
+            <span class="font-bold flex items-center gap-1.5">
+              <i data-lucide="image" class="w-4 h-4 text-blue-400"></i> Pratinjau Bukti Fisik
+            </span>
+            <button onclick="this.closest('.fixed').remove()" class="text-slate-400 hover:text-white">&times;</button>
+          </div>
+          <div class="p-6 text-center space-y-3">
+            <div class="p-6 bg-slate-50 border-2 border-dashed border-slate-300 rounded-xl relative">
+              <i data-lucide="receipt-text" class="w-12 h-12 text-slate-400 mx-auto mb-2"></i>
+              <strong class="text-slate-800 block">${name}</strong>
+              <p class="text-slate-500 text-[11px] mt-1">${desc}</p>
+              <p class="font-mono font-bold text-rose-700 text-sm mt-2">${formatIDR(amount)}</p>
+              <div class="mt-3 inline-block px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded">
+                TERVERIFIKASI FISIK DOKU
+              </div>
+            </div>
+            <p class="text-[11px] text-slate-400">Berkas tersimpan aman di Private Storage Vault DOKU.</p>
+          </div>
+          <div class="p-3 bg-slate-100 text-right">
+            <button onclick="this.closest('.fixed').remove()" class="px-4 py-1.5 bg-slate-900 text-white rounded-lg font-bold">Tutup</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+      lucide.createIcons();
+    }
+
+    /**
+     * BANK STATEMENT RECONCILIATION SIMULATOR
+     */
+    function simulateBankSync() {
+      closeModal('modal-reconcile');
+      showToast('Sinkronisasi rekening koran berhasil! Saldo giro bank cocok 100% dengan buku kas DOKU.', 'success');
+      renderAll();
+    }
+
+    /**
+     * UPDATE REPORT MODAL DATA
+     */
+    function updateReportModalData(incomeSum, incomeCount, expenseSum, expenseCount, realBalance) {
+      const formatIDR = (n) => 'Rp ' + Number(n).toLocaleString('id-ID');
+
+      document.getElementById('rep-income-count').innerText = `${incomeCount} Transaksi Masuk`;
+      document.getElementById('rep-income-total').innerText = formatIDR(incomeSum);
+
+      document.getElementById('rep-expense-count').innerText = `${expenseCount} Belanja Sah`;
+      document.getElementById('rep-expense-total').innerText = `- ${formatIDR(expenseSum)}`;
+
+      document.getElementById('rep-balance-final').innerText = formatIDR(realBalance);
+
+      // Breakdown per category
+      const catMap = {};
+      STATE.transactions.filter(t => t.status === 'approved' && t.type === 'pengeluaran').forEach(t => {
+        catMap[t.category] = (catMap[t.category] || 0) + t.amount;
+      });
+
+      const catTbody = document.getElementById('rep-category-breakdown');
+      catTbody.innerHTML = '';
+
+      for (const [cat, val] of Object.entries(catMap)) {
+        const pct = expenseSum > 0 ? ((val / expenseSum) * 100).toFixed(1) : 0;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="p-2.5 font-bold text-slate-800">${cat}</td>
+          <td class="p-2.5">
+            <div class="flex items-center gap-2">
+              <div class="w-24 bg-slate-200 h-2 rounded-full overflow-hidden">
+                <div class="bg-blue-600 h-full rounded-full" style="width: ${pct}%"></div>
+              </div>
+              <span class="font-mono text-slate-500">${pct}%</span>
+            </div>
+          </td>
+          <td class="p-2.5 text-right font-mono font-bold text-slate-900">${formatIDR(val)}</td>
+        `;
+        catTbody.appendChild(tr);
+      }
+    }
+
+    /**
+     * MODAL HELPERS
+     */
+    function openSetorNotaModal() {
+      document.getElementById('modal-setor-nota').classList.remove('hidden');
+      document.getElementById('modal-setor-nota').classList.add('flex');
+    }
+
+    function openReconcileModal() {
+      document.getElementById('modal-reconcile').classList.remove('hidden');
+      document.getElementById('modal-reconcile').classList.add('flex');
+    }
+
+    function openReportModal() {
+      document.getElementById('modal-report').classList.remove('hidden');
+      document.getElementById('modal-report').classList.add('flex');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+      document.getElementById(id).classList.remove('flex');
+    }
+
+    /**
+     * TOAST HELPER
+     */
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+
+      const colors = {
+        success: 'bg-emerald-600 text-white',
+        error: 'bg-rose-600 text-white',
+        info: 'bg-slate-900 text-white border border-slate-800',
+        warning: 'bg-amber-600 text-white'
+      };
+
+      toast.className = `p-3.5 rounded-xl shadow-xl flex items-center gap-2 text-xs font-medium transition-all duration-300 transform translate-y-2 opacity-0 pointer-events-auto ${colors[type] || colors.info}`;
+      toast.innerHTML = `
+        <span class="flex-1">${message}</span>
+        <button onclick="this.parentElement.remove()" class="opacity-70 hover:opacity-100">&times;</button>
+      `;
+
+      container.appendChild(toast);
+      setTimeout(() => toast.classList.remove('translate-y-2', 'opacity-0'), 10);
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-x-4');
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+{
+  "name": "DOKU Financial - Jasa Pembukuan & Pengelolaan Kas",
+  "description": "Platform simulasi layanan pembukuan, audit nota, rekonsiliasi kas, dan penerbitan LPJ resmi dua sudut pandang (Klien & Akuntan DOKU).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
